@@ -12,3 +12,18 @@ services:
       - .env
     volumes:
       - ./app:/var/task
+    depends_on:
+      - localstack
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs
+      - DEBUG=1
+      - EDGE_PORT=4566
+    volumes:
+      - ./localstack/init-queue.sh:/etc/localstack/init/ready.d/init-queue.sh
+      - /var/run/docker.sock:/var/run/docker.sock

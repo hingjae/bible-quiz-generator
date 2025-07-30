@@ -5,12 +5,33 @@ from dotenv import load_dotenv
 from langchain.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain.docstore.document import Document
+
 import json
 import random
-
 import os
+import boto3
 
 load_dotenv()
+
+def send_to_sqs(message_body):
+  sqs = boto3.client(
+      'sqs',
+      region_name=os.getenv("AWS_REGION"),
+      endpoint_url=os.getenv("SQS_ENDPOINT"),
+      aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+      aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+  )
+
+  # 큐 URL 가져오기
+  queue_name = os.getenv("QUEUE_NAME")
+  queue_url = sqs.get_queue_url(QueueName=queue_name)['QueueUrl']
+
+  # 메시지 전송
+  response = sqs.send_message(
+      QueueUrl=queue_url,
+      MessageBody=json.dumps(message_body)
+  )
+  print("SQS 전송 결과:", response)
 
 def lambda_handler(event, context):
 
@@ -128,6 +149,8 @@ def lambda_handler(event, context):
   cleaned = cleaned.replace("```json", "").replace("```", "").strip()
 
   parsed = json.loads(cleaned)
+
+  send_to_sqs(parsed)
 
   return {
     "statusCode": 200,
