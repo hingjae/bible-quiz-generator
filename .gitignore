@@ -1,0 +1,6 @@
+.env
+bible
+venv
+__pycache__
+python
+layer.zip

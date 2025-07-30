@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  lambda:
+    build:
+      context: .
+    image: bible-quiz-lambda
+    container_name: bible-quiz-lambda
+    ports:
+      - "9000:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./app:/var/task
