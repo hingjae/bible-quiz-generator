@@ -13,6 +13,20 @@ import boto3
 
 load_dotenv()
 
+def get_sqs_client():
+    is_local = os.getenv("PROFILE") == "local"
+
+    if is_local:
+        return boto3.client(
+            "sqs",
+            region_name=os.getenv("AWS_REGION"),
+            endpoint_url=os.getenv("SQS_ENDPOINT"),
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+        )
+    else:
+        return boto3.client("sqs", region_name="ap-northeast-2")
+
 def send_to_sqs(message_body):
   sqs = boto3.client(
       'sqs',
