@@ -1,2 +1,2 @@
 #!/bin/bash
-awslocal sqs create-queue --queue-name bible-quiz-queue
+awslocal --region ap-northeast-2 sqs create-queue --queue-name quiz-result-queue
