@@ -10,6 +10,7 @@ import json
 import random
 import os
 import boto3
+import uuid
 
 load_dotenv()
 
@@ -27,18 +28,17 @@ def get_sqs_client():
     else:
         return boto3.client("sqs", region_name="ap-northeast-2")
 
-def send_to_sqs(message_body):
-  sqs = boto3.client(
-      'sqs',
-      region_name=os.getenv("AWS_REGION"),
-      endpoint_url=os.getenv("SQS_ENDPOINT"),
-      aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-      aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
-  )
+def send_to_sqs(parsed_response):
+  sqs = get_sqs_client()
 
   # 큐 URL 가져오기
   queue_name = os.getenv("QUEUE_NAME")
   queue_url = sqs.get_queue_url(QueueName=queue_name)['QueueUrl']
+
+  message_body = {
+      "request_id": str(uuid.uuid4()),
+      "quizzes": parsed_response
+  }
 
   # 메시지 전송
   response = sqs.send_message(
@@ -55,7 +55,7 @@ def lambda_handler(event, context):
 
   QUIZ_MULTI_PROMPT_TEMPLATE = """
   당신은 성경 전문가입니다.
-  아래 **Context** 내용을 바탕으로 객관식 4지선다형 퀴즈를 총 10개를 한글로 생성하세요.
+  아래 **Context** 내용을 바탕으로 객관식 4지선다형 퀴즈를 총 3개를 한글로 생성하세요.
 
   **출제 규칙:**
   - 반드시 아래 JSON 배열 형식으로만 반환하세요.
