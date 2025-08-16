@@ -112,11 +112,11 @@ def resolve_result_queue_url(sqs):
     raise RuntimeError("RESULT_QUEUE_URL 또는 QUEUE_NAME 환경변수가 필요합니다.")
 
 
-def send_to_sqs(parsed_response, request_id):
+def send_to_sqs(parsed_response, request_id, topic_id):
     sqs = get_sqs_client()
     queue_url = resolve_result_queue_url(sqs)
 
-    message_body = {"request_id": request_id, "quizzes": parsed_response}
+    message_body = {"request_id": request_id, "topic_id": topic_id, "quizzes": parsed_response}
     resp = sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(message_body))
     print("SQS 전송 결과 MessageId:", resp.get("MessageId"))
     return request_id
@@ -153,6 +153,8 @@ def process_one(payload):
     """
     book_title = payload.get("bookTitle")
     question   = payload.get("question")
+    print("book_title ", book_title)
+    print("question ", question)
 
     if not book_title:
         raise ValueError("bookTitle이 필요합니다.")
@@ -216,7 +218,8 @@ def lambda_handler(event, context):
 
         try:
             parsed = process_one(payload)
-            send_to_sqs(parsed, request_id)
+            topic_id = payload.get("topicId")
+            send_to_sqs(parsed, request_id, topic_id)
         except Exception as e:
             print("ERROR processing payload:", request_id, e)
             traceback.print_exc()
