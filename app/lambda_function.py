@@ -89,14 +89,6 @@ prompt_template = PromptTemplate(input_variables=["context"], template=QUIZ_MULT
 # 유틸
 # =========================
 def get_sqs_client():
-    if PROFILE == "local" and SQS_ENDPOINT:
-        return boto3.client(
-            "sqs",
-            region_name=REGION,
-            endpoint_url=SQS_ENDPOINT,
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        )
     return boto3.client("sqs", region_name=REGION)
 
 
@@ -112,9 +104,10 @@ def resolve_result_queue_url(sqs):
     raise RuntimeError("RESULT_QUEUE_URL 또는 QUEUE_NAME 환경변수가 필요합니다.")
 
 
-def send_to_sqs(parsed_response, request_id, topic_id):
+def send_to_sqs(parsed_response, request_id, topic_id, result_queue_url):
     sqs = get_sqs_client()
-    queue_url = resolve_result_queue_url(sqs)
+    print("result queue url ", result_queue_url)
+    queue_url = result_queue_url or resolve_result_queue_url(sqs)
 
     message_body = {"request_id": request_id, "topic_id": topic_id, "quizzes": parsed_response}
     resp = sqs.send_message(QueueUrl=queue_url, MessageBody=json.dumps(message_body))
@@ -151,15 +144,15 @@ def process_one(payload):
     기존 RAG + LLM 로직을 함수로 분리.
     실패 시 예외를 던져 상위에서 partial failure 처리.
     """
-    book_title = payload.get("bookTitle")
-    question   = payload.get("question")
-    print("book_title ", book_title)
+    book_file_name = payload.get("bookFileName")
+    question = payload.get("question")
+    print("book_file_name ", book_file_name)
     print("question ", question)
 
-    if not book_title:
+    if not book_file_name:
         raise ValueError("bookTitle이 필요합니다.")
 
-    vector_store = PineconeVectorStore(index=index, embedding=embeddings, namespace=book_title)
+    vector_store = PineconeVectorStore(index=index, embedding=embeddings, namespace=book_file_name)
     retriever = vector_store.as_retriever(
         search_type="similarity_score_threshold",
         search_kwargs={"k": 10, "score_threshold": 0.4}
@@ -176,10 +169,10 @@ def process_one(payload):
         ids_response = index.describe_index_stats()
         total_vector_count = ids_response.total_vector_count
         random_numbers = random.sample(range(total_vector_count), k=min(5, total_vector_count))
-        random_ids = [f"{book_title}-{i}" for i in random_numbers]
+        random_ids = [f"{book_file_name}-{i}" for i in random_numbers]
         print("random_ids:", random_ids)
 
-        fetched = index.fetch(namespace=book_title, ids=random_ids)
+        fetched = index.fetch(namespace=book_file_name, ids=random_ids)
         docs = [Document(page_content=v.metadata["text"]) for v in fetched.vectors.values()]
         context = "\n\n".join([d.page_content for d in docs])
 
@@ -219,7 +212,8 @@ def lambda_handler(event, context):
         try:
             parsed = process_one(payload)
             topic_id = payload.get("topicId")
-            send_to_sqs(parsed, request_id, topic_id)
+            result_queue_url = payload.get("resultQueueUrl")
+            send_to_sqs(parsed, request_id, topic_id, result_queue_url)
         except Exception as e:
             print("ERROR processing payload:", request_id, e)
             traceback.print_exc()
