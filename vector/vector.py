@@ -10,7 +10,7 @@ load_dotenv()
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX = os.getenv("PINECONE_INDEX")
-book_title = "Genesis"
+book_title = "Revelation"
 
 pc = Pinecone(api_key=PINECONE_API_KEY)
 

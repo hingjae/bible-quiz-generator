@@ -37,7 +37,7 @@ llm        = ChatOpenAI(model="gpt-4o", temperature=0.3)
 
 QUIZ_MULTI_PROMPT_TEMPLATE = """
 당신은 성경 전문가입니다.
-아래 **Context** 내용을 바탕으로 객관식 4지선다형 퀴즈를 총 3개를 한글로 생성하세요.
+아래 **Context** 내용을 바탕으로 객관식 4지선다형 퀴즈를 총 5개를 한글로 생성하세요.
 
 **출제 규칙:**
 - 반드시 아래 JSON 배열 형식으로만 반환하세요.
@@ -48,6 +48,11 @@ QUIZ_MULTI_PROMPT_TEMPLATE = """
 - 정답의 이유(correct_answer_reason)는 성경 본문에 기반한 논리적인 해설이어야 합니다.
 - 정답의 근거가 되는 성경 말씀의 출처를 "reference" 필드에 "창1:1", "창1:1-3", "출12:7,11" 처럼 **한 개 또는 복수의 장절**로 작성하세요.
 - Context에 충분한 정보가 없다면 배열의 각 항목에 "충분한 정보가 없습니다."라는 문제와 함께 options는 빈 배열, reference는 빈 문자열("")로 반환하세요.
+
+**중요 제약:**
+- 성경의 **장이나 절 번호를 맞추는 문제는 절대 출제하지 마세요.**
+- 질문(question)은 반드시 사건, 인물, 장소, 행동, 대화 등 **본문의 구체적인 내용**을 묻도록 하세요.
+- "이 말씀이 몇 장에 기록되었습니까?" 같은 형식은 금지합니다.
 
 **질문(question) 작성 가이드라인:**
 - 각 질문(question)은 반드시 서로 다른 내용을 기반으로 생성하세요.
@@ -167,7 +172,12 @@ def process_one(payload):
         response = rag_chain.invoke(question)
     else:
         ids_response = index.describe_index_stats()
-        total_vector_count = ids_response.total_vector_count
+        # total_vector_count = ids_response.total_vector_count
+        namespace_stats = ids_response.namespaces
+        total_vector_count = namespace_stats[book_file_name].vector_count
+        print("namespace_stats ", namespace_stats)
+        print("total_vector_count ", total_vector_count)
+        
         random_numbers = random.sample(range(total_vector_count), k=min(5, total_vector_count))
         random_ids = [f"{book_file_name}-{i}" for i in random_numbers]
         print("random_ids:", random_ids)
